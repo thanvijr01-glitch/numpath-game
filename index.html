@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NumPath — Daily Number Puzzle</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #FAFAF7;
+  --surface: #FFFFFF;
+  --surface2: #F3F2EE;
+  --border: #E5E3DC;
+  --text: #1A1A18;
+  --sub: #888880;
+  --accent: #E85D3A;
+  --accent2: #2D6BE4;
+  --gold: #D4A017;
+  --green: #2E8B57;
+  --path-color: #2D6BE4;
+  --path-bg: #EBF1FD;
+  --selected-bg: #2D6BE4;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+body {
+  font-family: 'Space Grotesk', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  user-select: none;
+}
+
+/* Subtle texture */
+body::before {
+  content:'';
+  position:fixed;
+  inset:0;
+  background-image: radial-gradient(circle, #00000008 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events:none;
+  z-index:0;
+}
+
+/* ── HEADER ── */
+header {
+  position:relative; z-index:10;
+  width:100%; max-width:480px;
+  padding: 20px 20px 12px;
+  display:flex; align-items:center; justify-content:space-between;
+  border-bottom: 1px solid var(--border);
+}
+
+.logo {
+  display:flex; flex-direction:column; gap:1px;
+}
+.logo-name {
+  font-family:'Bebas Neue', sans-serif;
+  font-size:32px; letter-spacing:2px;
+  color: var(--text);
+  line-height:1;
+}
+.logo-name span { color: var(--accent); }
+.logo-sub {
+  font-size:11px; color:var(--sub);
+  letter-spacing:1.5px; text-transform:uppercase;
+  font-family:'JetBrains Mono', monospace;
+}
+
+.hdr-right { display:flex; gap:8px; }
+.hdr-btn {
+  width:36px; height:36px;
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:8px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:15px; cursor:pointer;
+  color:var(--sub); transition:all .18s;
+  font-family:'JetBrains Mono', monospace;
+}
+.hdr-btn:hover { border-color:var(--accent); color:var(--text); }
+
+/* ── MAIN ── */
+main {
+  position:relative; z-index:10;
+  width:100%; max-width:480px;
+  padding:16px 16px 32px;
+  display:flex; flex-direction:column; align-items:center;
+  gap:14px;
+}
+
+/* ── TARGET CARD ── */
+.target-card {
+  width:100%;
+  background:var(--surface);
+  border:1.5px solid var(--border);
+  border-radius:16px;
+  padding:16px 20px;
+  display:flex; align-items:center; justify-content:space-between;
+  box-shadow: 0 2px 8px rgba(0,0,0,.05);
+}
+
+.target-left { display:flex; flex-direction:column; gap:3px; }
+.target-label {
+  font-size:11px; color:var(--sub);
+  text-transform:uppercase; letter-spacing:2px;
+  font-family:'JetBrains Mono', monospace;
+}
+.target-num {
+  font-family:'Bebas Neue', sans-serif;
+  font-size:56px; line-height:1;
+  color: var(--accent);
+  letter-spacing:2px;
+}
+
+.target-right { text-align:right; display:flex; flex-direction:column; gap:8px; align-items:flex-end; }
+
+.current-sum-wrap {
+  display:flex; flex-direction:column; align-items:flex-end; gap:2px;
+}
+.current-sum-label { font-size:11px; color:var(--sub); letter-spacing:1px; text-transform:uppercase; font-family:'JetBrains Mono', monospace; }
+.current-sum {
+  font-family:'Bebas Neue', sans-serif;
+  font-size:38px; line-height:1;
+  color: var(--accent2);
+  transition: color .2s;
+}
+.current-sum.exact { color: var(--green) !important; }
+.current-sum.over  { color: var(--accent) !important; }
+
+.path-len-badge {
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:20px;
+  padding:4px 12px;
+  font-size:12px; font-weight:600;
+  color:var(--sub);
+}
+.path-len-badge span { color:var(--accent2); font-family:'JetBrains Mono', monospace; }
+
+/* ── STATS ROW ── */
+.stats-row {
+  width:100%;
+  display:flex; gap:8px;
+}
+.stat-pill {
+  flex:1;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:10px 12px;
+  text-align:center;
+  box-shadow:0 1px 4px rgba(0,0,0,.04);
+}
+.stat-v {
+  font-family:'Bebas Neue', sans-serif;
+  font-size:26px; line-height:1; color:var(--text);
+}
+.stat-l { font-size:10px; color:var(--sub); text-transform:uppercase; letter-spacing:1px; margin-top:2px; }
+
+/* ── GRID ── */
+.grid-container {
+  width:100%;
+  display:flex; justify-content:center;
+  position:relative;
+}
+
+#game-grid {
+  display:grid;
+  grid-template-columns: repeat(5,1fr);
+  gap:7px;
+  width:100%; max-width:340px;
+}
+
+.cell {
+  aspect-ratio:1;
+  background:var(--surface);
+  border:2px solid var(--border);
+  border-radius:12px;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Bebas Neue', sans-serif;
+  font-size:28px;
+  color:var(--text);
+  cursor:pointer;
+  position:relative;
+  transition: background .15s, border-color .15s, transform .1s, color .15s;
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+}
+
+.cell:hover:not(.selected):not(.disabled) {
+  border-color: var(--accent2);
+  transform: scale(1.05);
+}
+
+.cell.selected {
+  background: var(--selected-bg);
+  border-color: var(--selected-bg);
+  color: white;
+  transform: scale(1.08);
+  z-index: 2;
+  box-shadow: 0 4px 16px rgba(45,107,228,.35);
+}
+
+/* path connector dots */
+.cell.in-path:not(.selected) {
+  background: var(--path-bg);
+  border-color: var(--path-color);
+  color: var(--path-color);
+}
+
+/* step number badge */
+.cell .step-badge {
+  position:absolute;
+  top:3px; right:5px;
+  font-family:'JetBrains Mono', monospace;
+  font-size:9px;
+  font-weight:700;
+  color: rgba(255,255,255,.7);
+  line-height:1;
+}
+.cell:not(.selected) .step-badge { color: var(--path-color); }
+
+.cell.flash-correct { animation: flashGreen .5s ease; }
+.cell.flash-wrong   { animation: flashRed .4s ease; }
+.cell.disabled { opacity:0.45; cursor:not-allowed; }
+
+@keyframes flashGreen {
+  0%   { background: var(--selected-bg); }
+  50%  { background: #2E8B57; border-color:#2E8B57; transform:scale(1.12); }
+  100% { background: var(--selected-bg); }
+}
+@keyframes flashRed {
+  0%,100% { transform:translateX(0); }
+  20%     { transform:translateX(-5px); }
+  40%     { transform:translateX(5px); }
+  60%     { transform:translateX(-3px); }
+  80%     { transform:translateX(3px); }
+}
+
+/* ── CONTROLS ── */
+.controls {
+  width:100%; display:flex; gap:10px;
+}
+.btn {
+  flex:1; padding:13px 10px;
+  border-radius:12px; border:none;
+  font-family:'Space Grotesk', sans-serif;
+  font-size:14px; font-weight:700;
+  cursor:pointer; transition:all .18s;
+  display:flex; align-items:center; justify-content:center; gap:6px;
+}
+.btn-primary {
+  background: var(--accent);
+  color:white; flex:2;
+}
+.btn-primary:hover { background:#d04e2e; transform:translateY(-1px); }
+.btn-ghost {
+  background:var(--surface);
+  border:1.5px solid var(--border);
+  color:var(--sub);
+}
+.btn-ghost:hover { border-color:var(--accent); color:var(--text); }
+
+/* ── PATH DISPLAY ── */
+.path-display {
+  width:100%;
+  background:var(--surface);
+  border:1.5px solid var(--border);
+  border-radius:14px;
+  padding:12px 16px;
+  min-height:52px;
+  display:flex; align-items:center;
+  gap:4px; flex-wrap:wrap;
+  font-family:'JetBrains Mono', monospace;
+  box-shadow:0 1px 4px rgba(0,0,0,.04);
+}
+.path-num {
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:6px;
+  padding:4px 10px;
+  font-size:16px; font-weight:700;
+  color:var(--text);
+  transition: background .2s;
+}
+.path-num.active { background:var(--selected-bg); color:white; border-color:var(--selected-bg); }
+.path-sep {
+  color:var(--sub); font-size:13px; padding:0 2px;
+}
+.path-empty { color:var(--sub); font-size:13px; font-style:italic; }
+
+/* ── INSTRUCTIONS ── */
+.instructions {
+  width:100%;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:14px 16px;
+}
+.inst-title {
+  font-size:11px; color:var(--sub);
+  text-transform:uppercase; letter-spacing:2px;
+  font-family:'JetBrains Mono', monospace;
+  margin-bottom:10px;
+}
+.inst-steps { display:flex; flex-direction:column; gap:8px; }
+.inst-step {
+  display:flex; gap:10px; align-items:flex-start;
+  font-size:13px; color:#555; line-height:1.45;
+}
+.inst-step .badge {
+  min-width:22px; height:22px;
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:6px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:700;
+  color:var(--accent);
+  font-family:'JetBrains Mono', monospace;
+  flex-shrink:0;
+}
+
+/* ── TOAST ── */
+#toast {
+  position:fixed; top:16px; left:50%;
+  transform:translateX(-50%) translateY(-70px);
+  background:var(--text); color:white;
+  padding:10px 22px; border-radius:30px;
+  font-size:14px; font-weight:600;
+  z-index:999; transition:transform .3s cubic-bezier(.34,1.56,.64,1);
+  white-space:nowrap; box-shadow:0 8px 28px rgba(0,0,0,.2);
+  pointer-events:none;
+}
+#toast.show { transform:translateX(-50%) translateY(0); }
+
+/* ── MODAL ── */
+.overlay {
+  position:fixed; inset:0;
+  background:rgba(255,255,255,.7);
+  backdrop-filter:blur(10px);
+  display:flex; align-items:center; justify-content:center;
+  z-index:500; opacity:0; pointer-events:none;
+  transition:opacity .3s; padding:20px;
+}
+.overlay.open { opacity:1; pointer-events:all; }
+.modal {
+  background:var(--surface);
+  border:1.5px solid var(--border);
+  border-radius:20px;
+  padding:28px 22px;
+  max-width:360px; width:100%;
+  text-align:center;
+  transform:scale(.9) translateY(20px);
+  transition:transform .35s cubic-bezier(.34,1.56,.64,1);
+  box-shadow:0 24px 60px rgba(0,0,0,.12);
+}
+.overlay.open .modal { transform:scale(1) translateY(0); }
+
+.modal-icon { font-size:54px; margin-bottom:10px; }
+.modal-title {
+  font-family:'Bebas Neue', sans-serif;
+  font-size:36px; letter-spacing:2px;
+  color:var(--accent); margin-bottom:6px;
+}
+.modal-sub { font-size:14px; color:var(--sub); margin-bottom:20px; line-height:1.5; }
+
+.modal-stats {
+  display:flex; gap:0;
+  margin-bottom:20px;
+  border:1.5px solid var(--border);
+  border-radius:12px; overflow:hidden;
+}
+.ms {
+  flex:1; padding:14px 8px; text-align:center;
+  border-right:1px solid var(--border);
+}
+.ms:last-child { border-right:none; }
+.ms-v { font-family:'Bebas Neue', sans-serif; font-size:32px; color:var(--accent2); }
+.ms-l { font-size:10px; color:var(--sub); text-transform:uppercase; letter-spacing:1px; }
+
+.share-preview {
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:14px;
+  font-family:'JetBrains Mono', monospace;
+  font-size:14px; color:var(--text);
+  text-align:left; line-height:1.7;
+  margin-bottom:16px; white-space:pre-wrap;
+}
+
+.mBtn {
+  width:100%; padding:14px;
+  border-radius:12px; border:none;
+  font-family:'Space Grotesk', sans-serif;
+  font-size:15px; font-weight:700;
+  cursor:pointer; transition:all .18s;
+  margin-bottom:8px;
+}
+.mBtn-primary { background:var(--accent); color:white; }
+.mBtn-primary:hover { background:#d04e2e; transform:translateY(-1px); }
+.mBtn-ghost {
+  background:none; border:1.5px solid var(--border);
+  color:var(--sub);
+}
+.mBtn-ghost:hover { border-color:var(--accent2); color:var(--text); }
+
+/* ── HOW TO MODAL ── */
+.help-modal .modal-title { color:var(--accent2); }
+
+/* diff row */
+.diff-row { display:flex; gap:8px; justify-content:center; margin-bottom:16px; }
+.diff-chip {
+  padding:5px 16px; border-radius:20px;
+  border:1.5px solid var(--border);
+  font-size:12px; font-weight:700;
+  cursor:pointer; color:var(--sub);
+  background:var(--surface2);
+  transition:all .18s;
+  font-family:'JetBrains Mono', monospace;
+  letter-spacing:1px;
+}
+.diff-chip.on { background:var(--accent); border-color:var(--accent); color:white; }
+
+@media(max-width:380px) {
+  .target-num { font-size:44px; }
+  .cell { font-size:24px; border-radius:9px; }
+  #game-grid { gap:5px; }
+}
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<!-- WIN MODAL -->
+<div class="overlay" id="win-ov">
+  <div class="modal">
+    <div class="modal-icon" id="win-icon">🎯</div>
+    <div class="modal-title" id="win-title">NAILED IT!</div>
+    <div class="modal-sub" id="win-sub">You found a perfect path.</div>
+    <div class="modal-stats">
+      <div class="ms"><div class="ms-v" id="m-path">—</div><div class="ms-l">Path Len</div></div>
+      <div class="ms"><div class="ms-v" id="m-best">—</div><div class="ms-l">Best Len</div></div>
+      <div class="ms"><div class="ms-v" id="m-score">—</div><div class="ms-l">Score</div></div>
+    </div>
+    <div class="share-preview" id="share-prev"></div>
+    <button class="mBtn mBtn-primary" onclick="doShare()">📋 Copy & Share on LinkedIn</button>
+    <button class="mBtn mBtn-ghost" onclick="nextLevel()">→ Next Puzzle</button>
+  </div>
+</div>
+
+<!-- HELP MODAL -->
+<div class="overlay help-modal" id="help-ov" onclick="closeHelp(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-icon">🔢</div>
+    <div class="modal-title" style="color:var(--accent2)">HOW TO PLAY</div>
+    <div class="modal-sub">Draw a connected number path that adds up to the target.</div>
+    <div style="text-align:left;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px;">
+      <div class="inst-steps">
+        <div class="inst-step"><div class="badge">1</div><div>Tap a starting cell on the grid to begin your path.</div></div>
+        <div class="inst-step"><div class="badge">2</div><div>Tap <strong>adjacent</strong> cells (up/down/left/right) to extend the path. Each must be a neighbor of the last picked cell.</div></div>
+        <div class="inst-step"><div class="badge">3</div><div>Watch the running sum. Hit the <strong>exact target number</strong> to solve it!</div></div>
+        <div class="inst-step"><div class="badge">4</div><div>Longer paths = higher score. Try to use as many cells as possible.</div></div>
+        <div class="inst-step"><div class="badge">✦</div><div>Tap the <strong>last selected cell</strong> again to undo one step.</div></div>
+      </div>
+    </div>
+    <div class="diff-row">
+      <div class="diff-chip on"  onclick="pickDiff(0,this)">EASY</div>
+      <div class="diff-chip"     onclick="pickDiff(1,this)">MEDIUM</div>
+      <div class="diff-chip"     onclick="pickDiff(2,this)">HARD</div>
+    </div>
+    <button class="mBtn mBtn-primary" onclick="document.getElementById('help-ov').classList.remove('open')">Start Playing!</button>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-name">Num<span>Path</span></div>
+    <div class="logo-sub">Puzzle #<span id="lv-num">001</span></div>
+  </div>
+  <div class="hdr-right">
+    <div class="hdr-btn" onclick="document.getElementById('help-ov').classList.add('open')" title="How to play">?</div>
+    <div class="hdr-btn" onclick="resetLevel()" title="Restart">↺</div>
+  </div>
+</header>
+
+<main>
+
+  <!-- TARGET CARD -->
+  <div class="target-card">
+    <div class="target-left">
+      <div class="target-label">Target Sum</div>
+      <div class="target-num" id="target-num">—</div>
+      <div style="font-size:12px;color:var(--sub);margin-top:2px;">Add up to exactly this</div>
+    </div>
+    <div class="target-right">
+      <div class="current-sum-wrap">
+        <div class="current-sum-label">Your Sum</div>
+        <div class="current-sum" id="current-sum">0</div>
+      </div>
+      <div class="path-len-badge">Path: <span id="path-len">0</span> cells</div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-pill">
+      <div class="stat-v" id="st-solved">0</div>
+      <div class="stat-l">Solved</div>
+    </div>
+    <div class="stat-pill">
+      <div class="stat-v" id="st-best" style="color:var(--gold)">—</div>
+      <div class="stat-l">Best Path</div>
+    </div>
+    <div class="stat-pill">
+      <div class="stat-v" id="st-score" style="color:var(--accent2)">0</div>
+      <div class="stat-l">Score</div>
+    </div>
+  </div>
+
+  <!-- GRID -->
+  <div class="grid-container">
+    <div id="game-grid"></div>
+  </div>
+
+  <!-- PATH DISPLAY -->
+  <div class="path-display" id="path-display">
+    <span class="path-empty">Tap any cell to start your path…</span>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="controls">
+    <button class="btn btn-ghost" onclick="undoStep()">← Undo</button>
+    <button class="btn btn-ghost" onclick="resetLevel()">↺ Reset</button>
+    <button class="btn btn-primary" onclick="nextLevel()">Next →</button>
+  </div>
+
+  <!-- INSTRUCTIONS -->
+  <div class="instructions">
+    <div class="inst-title">How to Play</div>
+    <div class="inst-steps">
+      <div class="inst-step"><div class="badge">1</div><div>Tap a cell to start. Then tap <strong>adjacent</strong> neighbors to build a path.</div></div>
+      <div class="inst-step"><div class="badge">2</div><div>Your path's numbers must add up to exactly the <strong>Target Sum</strong>.</div></div>
+      <div class="inst-step"><div class="badge">3</div><div>Longer valid paths score more points. Tap last cell to <strong>undo</strong>.</div></div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ═══════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════
+const GRID = 5;
+const DIFFS = [
+  { label:'EASY',   lo:1, hi:6, target_lo:10, target_hi:20 },
+  { label:'MEDIUM', lo:1, hi:8, target_lo:18, target_hi:32 },
+  { label:'HARD',   lo:1, hi:9, target_lo:25, target_hi:42 },
+];
+
+let diff = 0;
+let level = 1;
+let board = [];       // flat array of numbers
+let path = [];        // array of cell indices in current path
+let pathSet = new Set();
+let solved = 0;
+let totalScore = 0;
+let bestPath = null;
+let target = 0;
+
+// ═══════════════════════════════════════════════
+//  SEEDED RNG
+// ═══════════════════════════════════════════════
+function mkRng(seed) {
+  let s = seed >>> 0;
+  return () => {
+    s ^= s << 13; s ^= s >> 17; s ^= s << 5;
+    return (s >>> 0) / 4294967296;
+  };
+}
+
+// ═══════════════════════════════════════════════
+//  GENERATE PUZZLE
+// ═══════════════════════════════════════════════
+function generate(seed) {
+  const cfg = DIFFS[diff];
+  const rng = mkRng(seed);
+  const range = cfg.hi - cfg.lo + 1;
+
+  // Fill grid with random numbers
+  board = Array.from({length: GRID*GRID}, () => cfg.lo + Math.floor(rng() * range));
+
+  // Find a valid path first, then set target = that path's sum
+  // This guarantees the puzzle is always solvable
+  const sol = findSolutionPath(rng, cfg);
+  if (sol) {
+    target = sol.reduce((a, i) => a + board[i], 0);
+  } else {
+    // fallback
+    target = cfg.target_lo + Math.floor(rng() * (cfg.target_hi - cfg.target_lo));
+  }
+}
+
+function findSolutionPath(rng, cfg) {
+  // Random DFS to find a path of length 3-8
+  const desired = 3 + Math.floor(rng() * 5);
+  for (let attempt = 0; attempt < 60; attempt++) {
+    const start = Math.floor(rng() * GRID * GRID);
+    const p = [start];
+    const vis = new Set([start]);
+    let ok = dfsPath(p, vis, desired);
+    if (ok && p.length >= 3) return p;
+  }
+  return null;
+}
+
+function dfsPath(p, vis, desired) {
+  if (p.length === desired) return true;
+  const last = p[p.length - 1];
+  const nbrs = shuffle(getNeighbors(last));
+  for (const n of nbrs) {
+    if (!vis.has(n)) {
+      p.push(n); vis.add(n);
+      if (dfsPath(p, vis, desired)) return true;
+      p.pop(); vis.delete(n);
+    }
+  }
+  return false;
+}
+
+function shuffle(arr) {
+  for (let i = arr.length-1; i>0; i--) {
+    const j = Math.floor(Math.random() * (i+1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function getNeighbors(idx) {
+  const r = Math.floor(idx/GRID), c = idx%GRID;
+  const res = [];
+  if (r > 0) res.push(idx - GRID);
+  if (r < GRID-1) res.push(idx + GRID);
+  if (c > 0) res.push(idx - 1);
+  if (c < GRID-1) res.push(idx + 1);
+  return res;
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════
+function renderGrid() {
+  const g = document.getElementById('game-grid');
+  g.innerHTML = '';
+  board.forEach((num, idx) => {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.id = 'cell-'+idx;
+    cell.textContent = num;
+    cell.addEventListener('click', () => onCellClick(idx));
+    g.appendChild(cell);
+  });
+}
+
+function refreshCells() {
+  board.forEach((_, idx) => {
+    const cell = document.getElementById('cell-'+idx);
+    if (!cell) return;
+    const posInPath = path.indexOf(idx);
+    const isSelected = idx === path[path.length-1];
+    const inPath = pathSet.has(idx);
+
+    cell.className = 'cell';
+    // Remove old badge
+    const old = cell.querySelector('.step-badge');
+    if (old) old.remove();
+
+    if (isSelected) {
+      cell.classList.add('selected');
+      const b = document.createElement('span');
+      b.className = 'step-badge';
+      b.textContent = posInPath+1;
+      cell.appendChild(b);
+    } else if (inPath) {
+      cell.classList.add('in-path');
+      const b = document.createElement('span');
+      b.className = 'step-badge';
+      b.textContent = posInPath+1;
+      cell.appendChild(b);
+    }
+  });
+}
+
+function renderPathDisplay() {
+  const pd = document.getElementById('path-display');
+  if (path.length === 0) {
+    pd.innerHTML = '<span class="path-empty">Tap any cell to start your path…</span>';
+    return;
+  }
+  pd.innerHTML = path.map((idx, i) => {
+    const active = i === path.length-1;
+    return `<div class="path-num${active?' active':''}">${board[idx]}</div>${i < path.length-1 ? '<div class="path-sep">+</div>' : ''}`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════
+//  INTERACTIONS
+// ═══════════════════════════════════════════════
+function onCellClick(idx) {
+  // Undo if tapping last selected cell
+  if (path.length > 0 && idx === path[path.length-1]) {
+    undoStep(); return;
+  }
+
+  // Already in path (not last) — ignore
+  if (pathSet.has(idx)) {
+    shake(idx); return;
+  }
+
+  // If path started, must be adjacent to last
+  if (path.length > 0) {
+    const last = path[path.length-1];
+    if (!getNeighbors(last).includes(idx)) {
+      showToast('⚡ Must tap an adjacent cell!');
+      shake(last);
+      return;
+    }
+  }
+
+  // Check if adding would exceed target
+  const newSum = currentSum() + board[idx];
+  if (newSum > target) {
+    showToast('🔴 Sum exceeded target! Undo or reset.');
+    shake(idx);
+    return;
+  }
+
+  // Add to path
+  path.push(idx);
+  pathSet.add(idx);
+
+  refreshCells();
+  renderPathDisplay();
+  updateSumDisplay();
+
+  // Check win
+  if (newSum === target) {
+    setTimeout(handleWin, 300);
+  }
+}
+
+function undoStep() {
+  if (path.length === 0) return;
+  const removed = path.pop();
+  pathSet.delete(removed);
+  refreshCells();
+  renderPathDisplay();
+  updateSumDisplay();
+}
+
+function shake(idx) {
+  const cell = document.getElementById('cell-'+idx);
+  if (!cell) return;
+  cell.classList.remove('flash-wrong');
+  void cell.offsetWidth;
+  cell.classList.add('flash-wrong');
+  setTimeout(() => cell.classList.remove('flash-wrong'), 500);
+}
+
+function currentSum() {
+  return path.reduce((a, i) => a + board[i], 0);
+}
+
+function updateSumDisplay() {
+  const s = currentSum();
+  const el = document.getElementById('current-sum');
+  el.textContent = s;
+  el.className = 'current-sum';
+  if (s === target) el.classList.add('exact');
+  else if (s > target) el.classList.add('over');
+  document.getElementById('path-len').textContent = path.length;
+}
+
+// ═══════════════════════════════════════════════
+//  WIN
+// ═══════════════════════════════════════════════
+function handleWin() {
+  solved++;
+  const pathLen = path.length;
+  const score = pathLen * 100 + (pathLen >= 5 ? 200 : 0);
+  totalScore += score;
+
+  if (!bestPath || pathLen > bestPath) bestPath = pathLen;
+
+  // Flash cells green
+  path.forEach((idx, i) => {
+    setTimeout(() => {
+      const cell = document.getElementById('cell-'+idx);
+      if (cell) { cell.classList.add('flash-correct'); }
+    }, i * 60);
+  });
+
+  // Update stats
+  document.getElementById('st-solved').textContent = solved;
+  document.getElementById('st-best').textContent = bestPath;
+  document.getElementById('st-score').textContent = totalScore;
+
+  // Build share text
+  const emojiGrid = buildEmojiGrid();
+  const shareText = `🔢 NumPath Puzzle #${String(level).padStart(3,'0')}\nPath: ${pathLen} cells · Sum: ${target} · Score: ${score}\n\n${emojiGrid}\n\n#NumPath #DailyPuzzle #LinkedIn`;
+  document.getElementById('share-prev').textContent = shareText;
+  document.getElementById('share-prev').dataset.text = shareText;
+
+  document.getElementById('m-path').textContent = pathLen;
+  document.getElementById('m-best').textContent = bestPath || pathLen;
+  document.getElementById('m-score').textContent = score;
+
+  const perfect = pathLen >= 6;
+  document.getElementById('win-icon').textContent = perfect ? '🏆' : '🎯';
+  document.getElementById('win-title').textContent = perfect ? 'PERFECT!' : 'NAILED IT!';
+  document.getElementById('win-sub').textContent = perfect
+    ? `Incredible path of ${pathLen} cells! You're a NumPath master.`
+    : `Solved with a path of ${pathLen} cells. Try a longer path next time!`;
+
+  setTimeout(() => {
+    document.getElementById('win-ov').classList.add('open');
+  }, path.length * 60 + 200);
+}
+
+function buildEmojiGrid() {
+  const rows = [];
+  for (let r = 0; r < GRID; r++) {
+    let row = '';
+    for (let c = 0; c < GRID; c++) {
+      const idx = r*GRID + c;
+      if (pathSet.has(idx)) {
+        row += '🟦';
+      } else {
+        row += '⬜';
+      }
+    }
+    rows.push(row);
+  }
+  return rows.join('\n');
+}
+
+// ═══════════════════════════════════════════════
+//  ACTIONS
+// ═══════════════════════════════════════════════
+function initLevel() {
+  path = [];
+  pathSet = new Set();
+  generate(level * 97 + diff * 500);
+  renderGrid();
+  updateSumDisplay();
+  renderPathDisplay();
+  document.getElementById('target-num').textContent = target;
+  document.getElementById('lv-num').textContent = String(level).padStart(3,'0');
+  document.getElementById('st-solved').textContent = solved;
+  document.getElementById('st-best').textContent = bestPath || '—';
+  document.getElementById('st-score').textContent = totalScore;
+  document.getElementById('current-sum').textContent = '0';
+  document.getElementById('current-sum').className = 'current-sum';
+  document.getElementById('path-len').textContent = '0';
+}
+
+function resetLevel() {
+  document.getElementById('win-ov').classList.remove('open');
+  path = []; pathSet = new Set();
+  refreshCells();
+  renderPathDisplay();
+  updateSumDisplay();
+}
+
+function nextLevel() {
+  document.getElementById('win-ov').classList.remove('open');
+  level++;
+  initLevel();
+}
+
+function pickDiff(d, el) {
+  diff = d;
+  document.querySelectorAll('.diff-chip').forEach(c => c.classList.remove('on'));
+  el.classList.add('on');
+  resetLevel();
+  initLevel();
+}
+
+function doShare() {
+  const text = document.getElementById('share-prev').dataset.text;
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('📋 Copied! Paste it on LinkedIn.');
+  });
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function closeHelp(e) {
+  if (e.target.id === 'help-ov') document.getElementById('help-ov').classList.remove('open');
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.querySelectorAll('.overlay').forEach(o => o.classList.remove('open'));
+  if (e.key === 'z' || e.key === 'Z') undoStep();
+  if (e.key === 'r') resetLevel();
+  if (e.key === 'n') nextLevel();
+  if (e.key === '?') document.getElementById('help-ov').classList.add('open');
+});
+
+// ── BOOT ──
+const firstTime = !localStorage.getItem('npath_v');
+if (firstTime) { localStorage.setItem('npath_v','1'); document.getElementById('help-ov').classList.add('open'); }
+initLevel();
+</script>
+</body>
+</html>
